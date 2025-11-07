@@ -1,0 +1,46 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Simple Glue ETL pipeline with Step Function trigger
+
+Resources:
+
+  GlueJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Name: simple-glue-filter-job
+      Role: arn:aws:iam::061051217784:role/AWSGlueServiceRole-ETLPOC
+      Command:
+        Name: glueetl
+        ScriptLocation: s3://etl-job-for-cicd-bucket/scripts/glue_filter_job.py
+        PythonVersion: 3
+      DefaultArguments:
+        "--job-language": "python"
+        "--enable-metrics": "true"
+        "--enable-continuous-cloudwatch-log": "true"
+        "--source_path": "s3://etl-job-for-cicd-bucket/raw/"
+        "--target_path": "s3://etl-job-for-cicd-bucket/silver/"
+      ExecutionProperty:
+        MaxConcurrentRuns: 1
+      GlueVersion: "3.0"
+      MaxRetries: 0
+      Timeout: 10
+
+  StepFunctionStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: glue-trigger-state-machine
+      RoleArn: arn:aws:iam::061051217784:role/StepFunctionRole-ETLPOC
+      DefinitionString: !Sub |
+        {
+          "Comment": "Trigger Glue Job from Step Function",
+          "StartAt": "Run Glue Job",
+          "States": {
+            "Run Glue Job": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::glue:startJobRun.sync",
+              "Parameters": {
+                "JobName": "simple-glue-filter-job"
+              },
+              "End": true
+            }
+          }
+        }
