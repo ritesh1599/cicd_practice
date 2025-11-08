@@ -1,0 +1,24 @@
+# Ignore PyCharm project files
+.idea/
+
+# Ignore Python cache and bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore virtual environments
+venv/
+.env/
+.venv/
+
+# Ignore local environment files
+*.env
+
+# Ignore AWS credentials (if accidentally created)
+*.pem
+*.key
+
+# Ignore system files
+.DS_Store
+Thumbs.db
