@@ -1,9 +1,10 @@
-name: CI/CD - Test then Deploy
+name: CI/CD - Test then Deploy (Phase 2.5)
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   test:
@@ -25,15 +26,16 @@ jobs:
       - name: Lint CloudFormation (cfn-lint)
         run: |
           pip install cfn-lint
-          cfn-lint cloudformation/template.yaml || true  # linter errors won't fail pipeline unless you want strict
+          cfn-lint cloudformation/template.yaml || true
 
       - name: Validate CloudFormation template
         run: |
-          aws cloudformation validate-template --template-body file://cloudformation/template.yaml || true
+          aws cloudformation validate-template --template-body file://cloudformation/template.yaml --region us-east-1 || true
 
       - name: Run pytest
         run: |
           pytest -q --junitxml=reports/junit.xml
+
       - name: Upload test report
         uses: actions/upload-artifact@v4
         with:
@@ -44,6 +46,8 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     if: ${{ needs.test.result == 'success' }}
+    environment:
+      name: production     # 👈 manual approval stage
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
