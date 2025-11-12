@@ -2,9 +2,12 @@
 from typing import List
 
 
-def filter_records(records: List[dict], amount_threshold: int = 600) -> List[dict]:
+def filter_records(
+    records: List[dict], amount_threshold: int = 600
+) -> List[dict]:
     """
-    records: list of dicts with keys 'id','name','amount' (amount as str or int)
+    records: list of dicts with keys 'id','name','amount'
+    (amount as str or int)
     returns filtered list where amount > amount_threshold
     Pure function used for unit tests.
     """
