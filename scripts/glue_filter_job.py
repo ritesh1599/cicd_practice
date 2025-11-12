@@ -5,6 +5,7 @@ import argparse
 from etl.transform import filter_records
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+
 def run_local_csv(source_path, target_path, amount_threshold=600):
     # Simple local runner using CSV and pandas (works in CI and development)
     import csv
