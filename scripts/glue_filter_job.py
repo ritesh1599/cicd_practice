@@ -1,5 +1,6 @@
 # scripts/glue_filter_job.py
-import sys
+import sys, os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import argparse
 import os
 from etl.transform import filter_records
