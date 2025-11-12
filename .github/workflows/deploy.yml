@@ -1,16 +1,16 @@
-name: CI/CD - Test then Deploy (Phase 2.5)
-#abc
+name: CI/CD - Test, Quality Check, and Deploy
+
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
 
 jobs:
   test:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Set up Python
@@ -22,17 +22,25 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install flake8 bandit yamllint cfn-lint
 
-      - name: Lint CloudFormation (cfn-lint)
+      - name: Run lint and security checks
         run: |
-          pip install cfn-lint
-          cfn-lint cloudformation/template.yaml || true
+          echo "🔹 Running flake8 (code style)..."
+          flake8 etl/ scripts/
+          echo "🔹 Running bandit (security scan)..."
+          bandit -r etl/ scripts/
+          echo "🔹 Running yamllint (YAML validation)..."
+          yamllint cloudformation/
+          echo "🔹 Linting CloudFormation..."
+          cfn-lint cloudformation/template.yaml
 
       - name: Validate CloudFormation template
         run: |
-          aws cloudformation validate-template --template-body file://cloudformation/template.yaml --region us-east-1 || true
+          aws cloudformation validate-template --region us-east-1 \
+            --template-body file://cloudformation/template.yaml
 
-      - name: Run pytest
+      - name: Run pytest (unit + integration)
         run: |
           pytest -q --junitxml=reports/junit.xml
 
@@ -47,7 +55,8 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ needs.test.result == 'success' }}
     environment:
-      name: production     # 👈 manual approval stage
+      name: production
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
@@ -59,11 +68,16 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Upload Glue Script to S3
+      - name: Build and Package Artifacts
         run: |
-          aws s3 cp scripts/glue_filter_job.py s3://etl-job-for-cicd-bucket/scripts/glue_filter_job.py
+          mkdir build
+          cp -r scripts cloudformation requirements.txt build/
+          zip -r build/glue_pipeline_artifact.zip build/*
+          BUILD_ID=$(date +%Y%m%d%H%M%S)
+          aws s3 cp build/glue_pipeline_artifact.zip \
+            s3://etl-job-for-cicd-bucket/artifacts/glue_pipeline_${BUILD_ID}.zip
 
-      - name: Package and Deploy CloudFormation Stack
+      - name: Deploy CloudFormation Stack from Artifact
         run: |
           aws cloudformation package \
             --template-file cloudformation/template.yaml \
